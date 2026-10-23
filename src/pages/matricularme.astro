@@ -1,0 +1,9 @@
+---
+const params = Astro.url.searchParams;
+const destino = new URL('/informacion', Astro.url);
+destino.searchParams.set('motivo', 'plaza');
+for (const [clave, valor] of params.entries()) {
+	destino.searchParams.set(clave, valor);
+}
+return Astro.redirect(destino.pathname + destino.search);
+---

@@ -1,0 +1,33 @@
+---
+import pool from '../lib/db'
+
+let ok = false
+let mensaje = ''
+let filas: { nombre: string }[] = []
+
+try {
+	const { rows } = await pool.query<{ nombre: string }>(
+		'SELECT nombre FROM cursos LIMIT 5',
+	)
+	filas = rows
+	ok = true
+	mensaje = 'Conectado a Supabase'
+} catch (e) {
+	mensaje = e instanceof Error ? e.message : 'Error de conexión'
+}
+---
+
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<title>Test BD · Training 4 You</title>
+	</head>
+	<body>
+		<h1>{ok ? 'OK' : 'FALLO'}</h1>
+		<p>{mensaje}</p>
+		<ul>
+			{filas.map((f) => <li>{f.nombre}</li>)}
+		</ul>
+		<p><a href="/">Volver al inicio</a></p>
+	</body>
+</html>

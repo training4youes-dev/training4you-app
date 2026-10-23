@@ -1,0 +1,141 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import pool from '../../../lib/db';
+import { NOMBRE_COOKIE_ADMIN, sesionValida } from '../../../lib/auth';
+import {
+	CAMPOS_SOLICITUD,
+	etiquetaEstado,
+	etiquetaMotivo,
+	formatearFecha,
+	normalizarEstado,
+	type Solicitud,
+} from '../../../lib/solicitudes';
+
+if (!sesionValida(Astro.cookies.get(NOMBRE_COOKIE_ADMIN)?.value)) {
+	return Astro.redirect('/admin');
+}
+
+let aviso = '';
+let errorAccion = '';
+
+if (Astro.request.method === 'POST') {
+	const datos = await Astro.request.formData();
+	const accion = String(datos.get('accion') ?? '');
+	const id = Number(datos.get('id'));
+
+	if (accion === 'borrar' && Number.isFinite(id) && id > 0) {
+		try {
+			await pool.query('DELETE FROM solicitudes WHERE id = $1', [id]);
+			aviso = 'Solicitud eliminada.';
+		} catch (e) {
+			errorAccion = e instanceof Error ? e.message : 'No se pudo eliminar';
+		}
+	}
+}
+
+let solicitudes: Solicitud[] = [];
+let errorCarga = '';
+
+try {
+	const { rows } = await pool.query<Solicitud>(
+		`SELECT ${CAMPOS_SOLICITUD}
+		 FROM solicitudes
+		 ORDER BY creado_en DESC`,
+	);
+	solicitudes = rows;
+} catch (e) {
+	errorCarga = e instanceof Error ? e.message : 'No se pudieron cargar las solicitudes';
+}
+---
+
+<AdminLayout title="Solicitudes · Admin · Training 4 You" activa="solicitudes">
+	<section class="admin-panel">
+		<header class="admin-cabecera">
+			<div>
+				<h1 class="pagina">Solicitudes</h1>
+				<p class="admin-resumen">
+					{errorCarga
+						? 'Error al conectar con la base de datos.'
+						: `${solicitudes.length} solicitud${solicitudes.length === 1 ? '' : 'es'}`}
+				</p>
+			</div>
+		</header>
+
+		{aviso ? <p class="admin-ok">{aviso}</p> : null}
+		{errorAccion ? <p class="form-error">{errorAccion}</p> : null}
+		{errorCarga ? <p class="form-error">{errorCarga}</p> : null}
+
+		{
+			!errorCarga && solicitudes.length === 0 ? (
+				<p class="nota">Todavía no hay solicitudes.</p>
+			) : !errorCarga ? (
+				<div class="admin-tabla-wrap">
+					<table class="admin-tabla">
+						<thead>
+							<tr>
+								<th>Fecha</th>
+								<th>Estado</th>
+								<th>Nombre</th>
+								<th>Email</th>
+								<th>WhatsApp</th>
+								<th>Motivo</th>
+								<th>Área</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							{solicitudes.map((s) => {
+								const estado = normalizarEstado(s.estado);
+								return (
+									<tr>
+										<td>{formatearFecha(s.creado_en)}</td>
+										<td>
+											<span class={`admin-estado admin-estado-${estado}`}>
+												{etiquetaEstado(estado)}
+											</span>
+										</td>
+										<td>
+											{s.nombre} {s.apellidos}
+										</td>
+										<td>
+											<a href={`mailto:${s.email}`}>{s.email}</a>
+										</td>
+										<td>
+											{s.whatsapp ? (
+												<a
+													href={`https://api.whatsapp.com/send?phone=${s.whatsapp.replace(/\D/g, '')}`}
+													target="_blank"
+													rel="noreferrer"
+												>
+													{s.whatsapp}
+												</a>
+											) : (
+												'—'
+											)}
+										</td>
+										<td>{etiquetaMotivo(s.motivo)}</td>
+										<td>{s.area || '—'}</td>
+										<td class="admin-acciones-celda">
+											<a href={`/admin/solicitudes/${s.id}`}>Ver</a>
+											<form method="POST" class="admin-inline-form">
+												<input type="hidden" name="accion" value="borrar" />
+												<input type="hidden" name="id" value={s.id} />
+												<button
+													type="submit"
+													class="admin-btn-peligro"
+													onclick="return confirm('¿Eliminar esta solicitud?')"
+												>
+													Borrar
+												</button>
+											</form>
+										</td>
+									</tr>
+								);
+							})}
+						</tbody>
+					</table>
+				</div>
+			) : null
+		}
+	</section>
+</AdminLayout>

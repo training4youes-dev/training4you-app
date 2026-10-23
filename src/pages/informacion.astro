@@ -1,0 +1,294 @@
+---
+import Layout from '../layouts/Layout.astro';
+import pool from '../lib/db';
+import { avisarNuevaSolicitud, guardarContactoBrevo } from '../lib/brevo';
+import { listarCursos } from '../lib/cursos';
+
+const areaElegida = Astro.url.searchParams.get('area') ?? '';
+const motivoParam = Astro.url.searchParams.get('motivo') ?? '';
+const motivoElegido =
+	motivoParam === 'plaza' || motivoParam === 'ayuda' ? motivoParam : 'informacion';
+
+let enviadoOk = false;
+let errorEnvio = '';
+
+let opcionesArea: { nombre: string }[] = [];
+try {
+	opcionesArea = (await listarCursos()).map((c) => ({ nombre: c.nombre }));
+} catch {
+	opcionesArea = [];
+}
+
+if (Astro.request.method === 'POST') {
+	try {
+		const datos = await Astro.request.formData();
+		const honeypot = String(datos.get('bot-field') ?? '').trim();
+
+		if (honeypot) {
+			enviadoOk = true;
+		} else {
+			const nombre = String(datos.get('nombre') ?? '').trim();
+			const apellidos = String(datos.get('apellidos') ?? '').trim();
+			const email = String(datos.get('email') ?? '').trim();
+			const whatsapp = String(datos.get('telefono') ?? '').trim();
+			const motivo = String(datos.get('motivo') ?? '').trim();
+			const area = String(datos.get('area') ?? '').trim();
+			const mensaje = String(datos.get('mensaje') ?? '').trim().slice(0, 1000);
+
+			if (!nombre || !apellidos || !email || !whatsapp || !motivo || !area) {
+				throw new Error('Faltan campos obligatorios');
+			}
+
+			if (!datos.get('privacidad')) {
+				throw new Error('Debes aceptar la política de privacidad');
+			}
+
+			await pool.query(
+				`INSERT INTO solicitudes (nombre, apellidos, email, whatsapp, motivo, area, mensaje)
+				 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+				[nombre, apellidos, email, whatsapp, motivo, area, mensaje || null],
+			);
+
+			const datosBrevo = {
+				nombre,
+				apellidos,
+				email,
+				whatsapp,
+				motivo,
+				area,
+				mensaje: mensaje || null,
+			};
+
+			try {
+				await guardarContactoBrevo(datosBrevo);
+			} catch (contactoError) {
+				console.error('Brevo: no se pudo guardar el contacto', contactoError);
+			}
+
+			try {
+				await avisarNuevaSolicitud(datosBrevo);
+			} catch (avisoError) {
+				console.error('Brevo: no se pudo enviar el aviso', avisoError);
+			}
+
+			enviadoOk = true;
+		}
+	} catch (e) {
+		errorEnvio = e instanceof Error ? e.message : 'Error al guardar la solicitud';
+		Astro.response.status = 400;
+	}
+}
+---
+
+<Layout title="Solicitar información o plaza · Training 4 You">
+	<section class="form-solicitud-bloque">
+		<header class="form-intro">
+			<h1 class="pagina">Cuéntanos qué formación te interesa</h1>
+			<p>
+				¿Quieres conocer nuestros cursos o solicitar una plaza?<br />
+				Completa el formulario y te informaremos de las opciones y los siguientes pasos.
+			</p>
+		</header>
+
+		<form
+			class="form-matricula"
+			id="form-solicitud"
+			name="solicitud"
+			method="POST"
+			action="/informacion"
+			novalidate
+			data-enviado={enviadoOk ? '1' : '0'}
+		>
+			<p class="honeypot" hidden>
+				<label>
+					No rellenar
+					<input name="bot-field" />
+				</label>
+			</p>
+
+			<label>
+				Motivo de contacto <span class="obligatorio" aria-hidden="true">*</span>
+				<select name="motivo" required>
+					<option value="">Elige una opción</option>
+					<option value="informacion" selected={motivoElegido === 'informacion'}>
+						Quiero información sobre un curso.
+					</option>
+					<option value="plaza" selected={motivoElegido === 'plaza'}>
+						Quiero solicitar plaza.
+					</option>
+					<option value="ayuda" selected={motivoElegido === 'ayuda'}>
+						Necesito ayuda para elegir formación.
+					</option>
+				</select>
+			</label>
+
+			<label>
+				Nombre <span class="obligatorio" aria-hidden="true">*</span>
+				<input type="text" name="nombre" autocomplete="given-name" required />
+			</label>
+
+			<label>
+				Apellidos <span class="obligatorio" aria-hidden="true">*</span>
+				<input type="text" name="apellidos" autocomplete="family-name" required />
+			</label>
+
+			<label>
+				Correo electrónico <span class="obligatorio" aria-hidden="true">*</span>
+				<input type="email" name="email" autocomplete="email" required />
+			</label>
+
+			<label>
+				Teléfono o WhatsApp <span class="obligatorio" aria-hidden="true">*</span>
+				<input
+					type="tel"
+					name="telefono"
+					autocomplete="tel"
+					placeholder="+34 600 000 000"
+					required
+				/>
+			</label>
+
+			<label>
+				Curso o área formativa de interés <span class="obligatorio" aria-hidden="true">*</span>
+				<select name="area" required>
+					<option value="">Elige un área</option>
+					{
+						opcionesArea.map((area) => (
+							<option value={area.nombre} selected={area.nombre === areaElegida}>
+								{area.nombre}
+							</option>
+						))
+					}
+				</select>
+			</label>
+
+			<label>
+				Mensaje adicional (opcional)
+				<textarea
+					name="mensaje"
+					rows="4"
+					maxlength="1000"
+					placeholder="Cuéntanos qué necesitas saber…"
+				></textarea>
+			</label>
+
+			<p class="areas-nota">
+				No necesitas facilitarnos tu número de pasaporte, DNI o NIE para realizar esta primera
+				consulta.
+			</p>
+
+			<label class="check">
+				<input type="checkbox" name="privacidad" required />
+				<span>
+					He leído la{' '}
+					<a href="/privacidad">política de privacidad</a>
+					{' '}y acepto el tratamiento de mis datos para gestionar mi solicitud.
+				</span>
+			</label>
+
+			<label class="check">
+				<input type="checkbox" name="novedades" />
+				<span>
+					Quiero recibir información sobre próximos cursos y novedades de Training 4 You.
+				</span>
+			</label>
+
+			<button class="btn btn-rojo" type="submit" id="btn-enviar">Enviar mi solicitud</button>
+			<p class="form-error" id="form-error" hidden={errorEnvio ? undefined : true}>
+				{errorEnvio || ''}
+			</p>
+		</form>
+	</section>
+
+	<dialog class="dialogo" id="dialogo-ok">
+		<button class="dialogo-x" type="button" id="dialogo-ok-x" aria-label="Cerrar">
+			×
+		</button>
+		<p id="dialogo-ok-texto">
+			¡Gracias por tu interés en Training 4 You! Hemos recibido correctamente tu solicitud. La
+			revisaremos y nos pondremos en contacto contigo para informarte de los siguientes pasos.
+		</p>
+		<button class="btn btn-rojo" type="button" id="dialogo-ok-btn">OK</button>
+	</dialog>
+
+	<p class="nota">
+		¿Tienes dudas?
+		<br />
+		Escríbenos a{' '}
+		<a href="mailto:info@training4you.es">info@training4you.es</a>
+	</p>
+</Layout>
+
+<script>
+	const formulario = document.getElementById('form-solicitud');
+	const dialogo = document.getElementById('dialogo-ok');
+	const btnOk = document.getElementById('dialogo-ok-btn');
+	const btnX = document.getElementById('dialogo-ok-x');
+	const btnEnviar = document.getElementById('btn-enviar');
+	const errorEl = document.getElementById('form-error');
+
+	const mensajeOk =
+		'¡Gracias por tu interés en Training 4 You! Hemos recibido correctamente tu solicitud. La revisaremos y nos pondremos en contacto contigo para informarte de los siguientes pasos.';
+	const mensajeError =
+		'No hemos podido enviar tu solicitud. Comprueba los datos e inténtalo de nuevo. Si el problema continúa, puedes escribirnos a info@training4you.es.';
+
+	function cerrar() {
+		if (dialogo instanceof HTMLDialogElement) dialogo.close();
+	}
+
+	function mostrarError(texto) {
+		if (!(errorEl instanceof HTMLElement)) return;
+		errorEl.hidden = false;
+		errorEl.textContent = texto;
+	}
+
+	function ocultarError() {
+		if (!(errorEl instanceof HTMLElement)) return;
+		errorEl.hidden = true;
+		errorEl.textContent = '';
+	}
+
+	function mostrarOk() {
+		const texto = document.getElementById('dialogo-ok-texto');
+		if (texto) texto.textContent = mensajeOk;
+		if (dialogo instanceof HTMLDialogElement) dialogo.showModal();
+	}
+
+	if (formulario?.dataset.enviado === '1') {
+		mostrarOk();
+	}
+
+	formulario?.addEventListener('submit', async (evento) => {
+		evento.preventDefault();
+		if (!(formulario instanceof HTMLFormElement)) return;
+		ocultarError();
+		if (!formulario.reportValidity()) return;
+
+		if (btnEnviar instanceof HTMLButtonElement) {
+			btnEnviar.disabled = true;
+		}
+
+		try {
+			const respuesta = await fetch('/informacion', {
+				method: 'POST',
+				body: new FormData(formulario),
+			});
+			if (!respuesta.ok) throw new Error('envio');
+
+			formulario.reset();
+			mostrarOk();
+		} catch {
+			mostrarError(mensajeError);
+		} finally {
+			if (btnEnviar instanceof HTMLButtonElement) {
+				btnEnviar.disabled = false;
+			}
+		}
+	});
+
+	btnOk?.addEventListener('click', cerrar);
+	btnX?.addEventListener('click', cerrar);
+	dialogo?.addEventListener('click', (evento) => {
+		if (evento.target === dialogo) cerrar();
+	});
+</script>

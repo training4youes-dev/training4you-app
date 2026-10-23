@@ -1,0 +1,69 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+	activa?: 'inicio' | 'solicitudes' | 'cursos';
+	login?: boolean;
+}
+
+const { title, activa = 'inicio', login = false } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<title>{title}</title>
+	</head>
+	<body class:list={['admin-body', { 'admin-body-login': login }]}>
+		{
+			login ? (
+				<main class="admin-login-shell">
+					<slot />
+				</main>
+			) : (
+				<div class="admin-shell">
+					<aside class="admin-sidebar">
+						<a class="admin-brand" href="/admin">
+							<img src="/logo-claro.svg" alt="Training 4 You" />
+							<span>Admin</span>
+						</a>
+						<nav class="admin-nav" aria-label="Administración">
+							<a href="/admin" class:list={{ activa: activa === 'inicio' }}>
+								Inicio
+							</a>
+							<a
+								href="/admin/solicitudes"
+								class:list={{ activa: activa === 'solicitudes' }}
+							>
+								Solicitudes
+							</a>
+							<a href="/admin/cursos" class:list={{ activa: activa === 'cursos' }}>
+								Áreas / cursos
+							</a>
+						</nav>
+						<div class="admin-sidebar-pie">
+							<a href="/" class="admin-enlace-web">Ver web</a>
+							<form method="POST" action="/admin">
+								<input type="hidden" name="accion" value="logout" />
+								<button type="submit" class="admin-logout">Cerrar sesión</button>
+							</form>
+						</div>
+					</aside>
+					<div class="admin-main">
+						<slot />
+					</div>
+				</div>
+			)
+		}
+	</body>
+</html>

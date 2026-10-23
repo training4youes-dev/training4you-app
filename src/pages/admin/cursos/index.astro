@@ -1,0 +1,110 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { NOMBRE_COOKIE_ADMIN, sesionValida } from '../../../lib/auth';
+import { borrarCurso, listarCursos, type Curso } from '../../../lib/cursos';
+
+if (!sesionValida(Astro.cookies.get(NOMBRE_COOKIE_ADMIN)?.value)) {
+	return Astro.redirect('/admin');
+}
+
+let aviso = '';
+let errorAccion = '';
+
+if (Astro.request.method === 'POST') {
+	const datos = await Astro.request.formData();
+	const accion = String(datos.get('accion') ?? '');
+	const id = Number(datos.get('id'));
+
+	if (accion === 'borrar' && Number.isFinite(id) && id > 0) {
+		try {
+			await borrarCurso(id);
+			aviso = 'Curso eliminado.';
+		} catch (e) {
+			errorAccion = e instanceof Error ? e.message : 'No se pudo eliminar';
+		}
+	}
+}
+
+let cursos: Curso[] = [];
+let errorCarga = '';
+
+try {
+	cursos = await listarCursos();
+} catch (e) {
+	errorCarga = e instanceof Error ? e.message : 'No se pudieron cargar los cursos';
+}
+---
+
+<AdminLayout title="Cursos · Admin · Training 4 You" activa="cursos">
+	<section class="admin-panel">
+		<header class="admin-cabecera">
+			<div>
+				<h1 class="pagina">Áreas / cursos</h1>
+				<p class="admin-resumen">
+					{errorCarga
+						? 'Error al conectar con la base de datos.'
+						: `${cursos.length} ficha${cursos.length === 1 ? '' : 's'} · mismas que en la web`}
+				</p>
+			</div>
+			<a class="btn btn-rojo" href="/admin/cursos/nuevo">Añadir</a>
+		</header>
+
+		<p class="admin-ayuda admin-ayuda-bloque">
+			No hay áreas y cursos por separado: lo que editas aquí es lo que se ve en /cursos y en el
+			formulario de información.
+		</p>
+
+		{aviso ? <p class="admin-ok">{aviso}</p> : null}
+		{errorAccion ? <p class="form-error">{errorAccion}</p> : null}
+		{errorCarga ? <p class="form-error">{errorCarga}</p> : null}
+
+		{
+			!errorCarga && cursos.length === 0 ? (
+				<p class="nota">
+					Todavía no hay cursos.{' '}
+					<a href="/admin/cursos/nuevo">Crea el primero</a>.
+				</p>
+			) : !errorCarga ? (
+				<div class="admin-tabla-wrap">
+					<table class="admin-tabla">
+						<thead>
+							<tr>
+								<th>Nombre</th>
+								<th>Estado</th>
+								<th>Web</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							{cursos.map((c) => (
+								<tr>
+									<td>
+										<strong>{c.nombre}</strong>
+										<br />
+										<span class="admin-slug">{c.slug}</span>
+									</td>
+									<td>{c.estado === 'proximamente' ? 'Próximamente' : 'Disponible'}</td>
+									<td>{c.publicado ? 'Publicado' : 'Oculto'}</td>
+									<td class="admin-acciones-celda">
+										<a href={`/admin/cursos/${c.id}`}>Editar</a>
+										<form method="POST" class="admin-inline-form">
+											<input type="hidden" name="accion" value="borrar" />
+											<input type="hidden" name="id" value={c.id} />
+											<button
+												type="submit"
+												class="admin-btn-peligro"
+												onclick="return confirm('¿Eliminar este curso?')"
+											>
+												Borrar
+											</button>
+										</form>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			) : null
+		}
+	</section>
+</AdminLayout>

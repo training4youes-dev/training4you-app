@@ -1,0 +1,125 @@
+---
+import '../styles/global.css';
+
+interface Props {
+	title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+		<title>{title}</title>
+	</head>
+	<body>
+		<header class="site-header">
+			<div class="wrap header-inner">
+				<a class="marca" href="/" aria-label="Inicio Training 4 You">
+					<img src="/logo-claro.svg" alt="Training 4 You" />
+					<span>Formación práctica para avanzar.</span>
+				</a>
+				<button
+					class="nav-toggle"
+					type="button"
+					aria-expanded="false"
+					aria-controls="nav-principal"
+					aria-label="Abrir menú"
+				>
+					<span></span>
+					<span></span>
+					<span></span>
+				</button>
+				<nav class="nav" id="nav-principal" aria-label="Principal">
+					<a href="/">Inicio</a>
+					<a href="/cursos">Cursos</a>
+					<a href="/nosotros">Acerca de mí</a>
+					<a href="/informacion">Solicitar información</a>
+					<a href="https://www.training4you.es" target="_blank" rel="noreferrer">
+						Volver a la web
+					</a>
+				</nav>
+			</div>
+		</header>
+		<main class="site-main wrap">
+			<slot />
+		</main>
+		<footer class="site-footer">
+			<div class="wrap footer-grid">
+				<div>
+					<p class="footer-marca">Training 4 You</p>
+					<p>Formación práctica para avanzar.</p>
+					<p>Formación en aula virtual · Catalunya</p>
+					<p><a href="/admin">Acceso equipo</a></p>
+				</div>
+				<div id="contacto">
+					<p class="footer-marca">Contacto</p>
+					<p>
+						<a href="mailto:info@training4you.es">info@training4you.es</a>
+					</p>
+					<p>
+						<a
+							class="btn-whatsapp-footer"
+							href="https://api.whatsapp.com/send?phone=34614889170&text=%C2%A1Hola!%20Me%20interesan%20vuestros%20cursos.%20%C2%BFHablamos%3F%20Gracias."
+							target="_blank"
+							rel="noreferrer"
+						>
+							WhatsApp
+						</a>
+					</p>
+					<p class="footer-horario">
+						Horario de atención: de lunes a viernes de 8:00 a 13:00 y de 15:00 a 18:00
+					</p>
+				</div>
+				<div>
+					<p class="footer-marca">Legal</p>
+					<p><a href="/aviso-legal">Aviso legal</a></p>
+					<p><a href="/privacidad">Política de privacidad</a></p>
+					<p><a href="/cookies">Política de cookies</a></p>
+				</div>
+			</div>
+		</footer>
+
+		<a
+			class="whatsapp-flotante"
+			href="https://api.whatsapp.com/send?phone=34614889170&text=%C2%A1Hola!%20Me%20interesan%20vuestros%20cursos.%20%C2%BFHablamos%3F%20Gracias."
+			target="_blank"
+			rel="noreferrer"
+			aria-label="Contactar por WhatsApp"
+		>
+			WhatsApp
+		</a>
+
+		<script>
+			const boton = document.querySelector('.nav-toggle');
+			const nav = document.getElementById('nav-principal');
+
+			function cerrarMenu() {
+				boton?.setAttribute('aria-expanded', 'false');
+				boton?.setAttribute('aria-label', 'Abrir menú');
+				document.body.classList.remove('nav-abierto');
+			}
+
+			boton?.addEventListener('click', () => {
+				const abierto = boton.getAttribute('aria-expanded') === 'true';
+				boton.setAttribute('aria-expanded', String(!abierto));
+				boton.setAttribute('aria-label', abierto ? 'Abrir menú' : 'Cerrar menú');
+				document.body.classList.toggle('nav-abierto', !abierto);
+			});
+
+			nav?.querySelectorAll('a').forEach((enlace) => {
+				enlace.addEventListener('click', cerrarMenu);
+			});
+		</script>
+	</body>
+</html>

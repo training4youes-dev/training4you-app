@@ -1,0 +1,109 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { cursoPorSlug } from '../../lib/cursos';
+
+const { slug } = Astro.params;
+const curso = slug ? await cursoPorSlug(slug) : null;
+
+if (!curso || !curso.publicado) {
+	return Astro.redirect('/cursos');
+}
+---
+
+<Layout title={`${curso.nombre} · Training 4 You`}>
+	<p class="curso-volver">
+		<a href="/cursos">← Volver a cursos</a>
+	</p>
+
+	<article class="curso-ficha">
+		<header class="curso-ficha-cabecera">
+			<p class="curso-estado">
+				{curso.estado === 'confirmado' ? 'Curso disponible' : 'Próximamente'}
+			</p>
+			<h1 class="pagina">{curso.nombre}</h1>
+			<p>{curso.aprender}</p>
+			<p class="curso-ficha-meta">
+				{curso.modalidad} · {curso.duracion}
+			</p>
+		</header>
+
+		<img class="curso-ficha-foto" src={curso.foto} alt="" width="1200" height="700" />
+
+		<section>
+			<h2>A quién va dirigido</h2>
+			<p>{curso.dirigido}</p>
+		</section>
+
+		<section>
+			<h2>Contenidos y aprendizajes</h2>
+			<ul>
+				{curso.contenidos.map((item) => <li>{item}</li>)}
+			</ul>
+		</section>
+
+		<section>
+			<h2>Calendario y plazas</h2>
+			<p>
+				Las fechas y plazas se concretan al solicitar información o plaza. Te confirmaremos los
+				detalles por email o WhatsApp.
+			</p>
+			<p>Duración: {curso.duracion}</p>
+		</section>
+
+		<section>
+			<h2>Requisitos e idioma</h2>
+			<p>{curso.requisitos}</p>
+			<p>Idioma: {curso.idioma}</p>
+		</section>
+
+		<section>
+			<h2>Herramientas necesarias</h2>
+			<p>{curso.herramientas}</p>
+		</section>
+
+		<section>
+			<h2>Asistencia y evaluación</h2>
+			<p>{curso.asistencia}</p>
+		</section>
+
+		<section>
+			<h2>Documento que se entrega</h2>
+			<p>{curso.certificado}</p>
+		</section>
+
+		<section>
+			<h2>Qué incluye</h2>
+			<p>{curso.incluye}</p>
+			<p>Las condiciones y plazas se concretan al contactar contigo.</p>
+		</section>
+
+		<div class="curso-ficha-acciones">
+			{
+				curso.estado === 'confirmado' ? (
+					<a
+						class="btn btn-rojo"
+						href={`/informacion?motivo=plaza&curso=${curso.slug}&area=${encodeURIComponent(curso.area || '')}`}
+					>
+						Solicitar plaza
+					</a>
+				) : (
+					<a
+						class="btn btn-linea"
+						href={`mailto:info@training4you.es?subject=Avísame%20-%20${encodeURIComponent(curso.nombre)}`}
+					>
+						Avísame
+					</a>
+				)
+			}
+			<a
+				class="btn btn-linea"
+				href={`mailto:info@training4you.es?subject=${encodeURIComponent(`Consulta: ${curso.nombre}`)}&body=${encodeURIComponent(`Hola, me interesa el curso de ${curso.nombre}. Quisiera información sobre las próximas fechas y cómo solicitar plaza.`)}`}
+			>
+				Escribir sobre este curso
+			</a>
+			<a class="btn btn-linea" href="/cursos">
+				Ver más cursos
+			</a>
+		</div>
+	</article>
+</Layout>

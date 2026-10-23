@@ -1,0 +1,173 @@
+---
+import type { Curso } from '../lib/cursos';
+import { storageConfigurado } from '../lib/storage';
+
+interface Props {
+	curso?: Curso | null;
+	error?: string;
+}
+
+const { curso = null, error = '' } = Astro.props;
+const contenidosTexto = curso?.contenidos?.join('\n') ?? '';
+const storageOk = storageConfigurado();
+const fotoActual = curso?.foto?.trim() || '';
+const tieneFotoPropia = Boolean(fotoActual && fotoActual !== '/portada.jpg');
+---
+
+{
+	error ? <p class="form-error">{error}</p> : null
+}
+
+<form method="POST" enctype="multipart/form-data" class="admin-curso-form">
+	<input type="hidden" name="accion" value="guardar" />
+	<input type="hidden" name="foto" value={curso?.foto ?? '/portada.jpg'} />
+
+	<p class="admin-ayuda admin-ayuda-bloque">
+		Cada ficha es a la vez el área y el curso de la web. Un solo nombre sirve para la galería,
+		el formulario y las solicitudes.
+	</p>
+
+	<label>
+		Nombre (área / curso) *
+		<input type="text" name="nombre" required value={curso?.nombre ?? ''} />
+	</label>
+
+	<label>
+		Slug (URL)
+		<input
+			type="text"
+			name="slug"
+			value={curso?.slug ?? ''}
+			placeholder="Se genera solo si lo dejas vacío"
+		/>
+	</label>
+
+	<label>
+		Descripción corta (galería) *
+		<textarea name="aprender" rows="3" required>{curso?.aprender ?? ''}</textarea>
+	</label>
+
+	<div class="admin-curso-grid">
+		<label>
+			Duración
+			<input type="text" name="duracion" value={curso?.duracion ?? ''} />
+		</label>
+		<label>
+			Modalidad
+			<input type="text" name="modalidad" value={curso?.modalidad ?? 'Aula virtual'} />
+		</label>
+		<label>
+			Idioma
+			<input type="text" name="idioma" value={curso?.idioma ?? 'Castellano'} />
+		</label>
+		<label>
+			Estado
+			<select name="estado">
+				<option value="confirmado" selected={curso?.estado !== 'proximamente'}>
+					Disponible
+				</option>
+				<option value="proximamente" selected={curso?.estado === 'proximamente'}>
+					Próximamente
+				</option>
+			</select>
+		</label>
+	</div>
+
+	<div class="admin-foto-bloque">
+		<p class="admin-foto-titulo">Foto</p>
+		{
+			curso?.foto ? (
+				<p class="admin-foto-previa">
+					<img src={curso.foto} alt="" width="280" height="210" />
+				</p>
+			) : null
+		}
+		{
+			storageOk ? (
+				<>
+					<label>
+						Subir / cambiar foto
+						<input
+							type="file"
+							name="foto_archivo"
+							accept="image/jpeg,image/png,image/webp,image/gif"
+						/>
+					</label>
+					{
+						tieneFotoPropia ? (
+							<div class="admin-foto-acciones">
+								<button
+									type="submit"
+									name="borrar_foto"
+									value="on"
+									class="btn admin-btn-borrar"
+									onclick="return confirm('¿Quitar la foto y usar la imagen por defecto?')"
+								>
+									Borrar foto
+								</button>
+								<span class="admin-ayuda">La imagen pasa a /portada.jpg</span>
+							</div>
+						) : null
+					}
+					<span class="admin-ayuda">JPG, PNG, WebP o GIF · máximo 5 MB · se guarda en Supabase</span>
+				</>
+			) : (
+				<>
+					<label>
+						Foto (ruta o URL)
+						<input type="text" name="foto_manual" value={curso?.foto ?? '/portada.jpg'} />
+					</label>
+					<span class="admin-ayuda">
+						Falta configurar SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en el .env para subir
+						archivos.
+					</span>
+				</>
+			)
+		}
+	</div>
+
+	<label class="admin-check">
+		<input type="checkbox" name="publicado" checked={curso?.publicado ?? false} />
+		Publicado en la web
+	</label>
+
+	<label>
+		A quién va dirigido
+		<textarea name="dirigido" rows="3">{curso?.dirigido ?? ''}</textarea>
+	</label>
+
+	<label>
+		Contenidos (una línea por ítem)
+		<textarea name="contenidos" rows="6">{contenidosTexto}</textarea>
+	</label>
+
+	<label>
+		Qué incluye
+		<textarea name="incluye" rows="2">{curso?.incluye ?? ''}</textarea>
+	</label>
+
+	<label>
+		Requisitos
+		<textarea name="requisitos" rows="2">{curso?.requisitos ?? ''}</textarea>
+	</label>
+
+	<label>
+		Herramientas
+		<textarea name="herramientas" rows="2">{curso?.herramientas ?? ''}</textarea>
+	</label>
+
+	<label>
+		Asistencia
+		<textarea name="asistencia" rows="2">{curso?.asistencia ?? ''}</textarea>
+	</label>
+
+	<label>
+		Certificado
+		<textarea name="certificado" rows="2">{curso?.certificado ?? ''}</textarea>
+	</label>
+
+	<div class="admin-curso-acciones">
+		<button type="submit" class="btn btn-rojo">Guardar</button>
+		<a class="btn btn-linea" href="/admin/cursos">Cancelar</a>
+	</div>
+</form>

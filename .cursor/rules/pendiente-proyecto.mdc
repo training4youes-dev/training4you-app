@@ -1,0 +1,28 @@
+---
+description: Recordatorio de lo que falta en Training 4 You (Emma) y qué revisar al cerrar el proyecto
+alwaysApply: true
+---
+
+# Pendiente Training 4 You
+
+Cuando la usuaria pregunte qué falta, qué queda, o diga que estáis al final / cerrando el proyecto, **recuerda siempre** esta lista (y `docs/legales/PENDIENTES.md`).
+
+## Antes de dar por cerrado el proyecto
+
+Completar los **corchetes del texto legal de Emma** en `/aviso-legal`, `/privacidad` y `/cookies`:
+
+1. Registro Mercantil y datos de inscripción
+2. URL definitiva de la aplicación (Netlify / subdominio)
+3. DPD (solo si lo designan)
+4. Plazos exactos de conservación de datos
+5. Detalle de transferencias internacionales (proveedores)
+6. Garantías internacionales en cookies (si aplica)
+
+## Otras tareas pendientes (app)
+
+- Probar bien subida / borrado de fotos en el admin
+- Publicar en Netlify (env vars + dominio/subdominio)
+- (Opcional) estados de solicitudes: ya hechos; verificar en uso real
+- Aparcado: Google login, Stripe, quiz, diplomas, blog
+
+No inventes datos registrales ni plazos legales: los da Emma / asesoría.

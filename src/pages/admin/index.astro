@@ -1,0 +1,237 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import pool from '../../lib/db';
+import {
+	NOMBRE_COOKIE_ADMIN,
+	adminPasswordConfigurada,
+	passwordCorrecta,
+	sesionValida,
+	valorCookieSesion,
+} from '../../lib/auth';
+import {
+	CAMPOS_SOLICITUD,
+	etiquetaMotivo,
+	formatearFecha,
+	type Solicitud,
+} from '../../lib/solicitudes';
+
+let errorLogin = '';
+let autenticada = sesionValida(Astro.cookies.get(NOMBRE_COOKIE_ADMIN)?.value);
+
+if (Astro.request.method === 'POST') {
+	const datos = await Astro.request.formData();
+	const accion = String(datos.get('accion') ?? '');
+
+	if (accion === 'logout') {
+		Astro.cookies.delete(NOMBRE_COOKIE_ADMIN, { path: '/' });
+		return Astro.redirect('/admin');
+	}
+
+	if (accion === 'login') {
+		const password = String(datos.get('password') ?? '');
+		if (!adminPasswordConfigurada()) {
+			errorLogin = 'Falta ADMIN_PASSWORD en el archivo .env';
+			Astro.response.status = 500;
+			autenticada = false;
+		} else if (passwordCorrecta(password)) {
+			Astro.cookies.set(NOMBRE_COOKIE_ADMIN, valorCookieSesion(), {
+				httpOnly: true,
+				path: '/',
+				sameSite: 'lax',
+				secure: import.meta.env.PROD,
+				maxAge: 60 * 60 * 24 * 7,
+			});
+			return Astro.redirect('/admin');
+		} else {
+			errorLogin =
+				'Contraseña incorrecta. Debe ser exactamente el valor de ADMIN_PASSWORD en el .env (sin las comillas).';
+			Astro.response.status = 401;
+			autenticada = false;
+		}
+	}
+}
+
+if (!autenticada) {
+	// formulario de login
+} else {
+	// dashboard
+}
+
+let total = 0;
+let porMotivo: { motivo: string | null; n: string }[] = [];
+let recientes: Solicitud[] = [];
+let errorCarga = '';
+
+if (autenticada) {
+	try {
+		const { rows: filaTotal } = await pool.query<{ n: string }>(
+			'SELECT count(*)::text AS n FROM solicitudes',
+		);
+		total = Number(filaTotal[0]?.n ?? 0);
+
+		const { rows: filasMotivo } = await pool.query<{ motivo: string | null; n: string }>(
+			`SELECT motivo, count(*)::text AS n
+			 FROM solicitudes
+			 GROUP BY motivo
+			 ORDER BY count(*) DESC`,
+		);
+		porMotivo = filasMotivo;
+
+		const { rows } = await pool.query<Solicitud>(
+			`SELECT ${CAMPOS_SOLICITUD}
+			 FROM solicitudes
+			 ORDER BY creado_en DESC
+			 LIMIT 5`,
+		);
+		recientes = rows;
+	} catch (e) {
+		errorCarga = e instanceof Error ? e.message : 'No se pudo cargar el panel';
+	}
+}
+---
+
+{
+	!autenticada ? (
+		<AdminLayout title="Acceso admin · Training 4 You" login>
+			<div class="admin-login">
+				<header class="admin-cabecera">
+					<h1 class="pagina">Acceso admin</h1>
+				</header>
+				<form method="POST" class="admin-login-form">
+					<input type="hidden" name="accion" value="login" />
+					<div class="admin-login-campo">
+						<label for="admin-password">Contraseña</label>
+						<div class="admin-login-input-wrap">
+							<input
+								type="password"
+								name="password"
+								id="admin-password"
+								required
+								autocomplete="current-password"
+								autofocus
+							/>
+							<button
+								type="button"
+								class="admin-ojo"
+								id="admin-ojo"
+								aria-label="Mostrar contraseña"
+								aria-pressed="false"
+							>
+								<svg class="ojo-icono ojo-cerrado" viewBox="0 0 24 24" aria-hidden="true">
+									<path
+										fill="currentColor"
+										d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+									/>
+									<path
+										fill="currentColor"
+										d="M3.2 3.2 20.8 20.8l-1.4 1.4L1.8 4.6 3.2 3.2Z"
+									/>
+								</svg>
+								<svg class="ojo-icono ojo-abierto" viewBox="0 0 24 24" aria-hidden="true">
+									<path
+										fill="currentColor"
+										d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+									/>
+								</svg>
+							</button>
+						</div>
+					</div>
+					{errorLogin ? <p class="form-error">{errorLogin}</p> : null}
+					<button type="submit" class="btn btn-rojo">
+						Entrar
+					</button>
+				</form>
+				<script is:inline>
+					(function () {
+						var campo = document.getElementById('admin-password');
+						var ojo = document.getElementById('admin-ojo');
+						if (!campo || !ojo) return;
+						ojo.addEventListener('click', function () {
+							var mostrar = campo.type === 'password';
+							campo.type = mostrar ? 'text' : 'password';
+							ojo.classList.toggle('is-abierto', mostrar);
+							ojo.setAttribute('aria-pressed', mostrar ? 'true' : 'false');
+							ojo.setAttribute(
+								'aria-label',
+								mostrar ? 'Ocultar contraseña' : 'Mostrar contraseña',
+							);
+						});
+					})();
+				</script>
+			</div>
+		</AdminLayout>
+	) : (
+		<AdminLayout title="Admin · Training 4 You" activa="inicio">
+			<section class="admin-panel">
+				<header class="admin-cabecera">
+					<div>
+						<h1 class="pagina">Inicio</h1>
+						<p class="admin-resumen">Resumen de captación</p>
+					</div>
+					<div class="admin-cabecera-acciones">
+						<a class="btn btn-linea" href="/admin/cursos">Áreas / cursos</a>
+						<a class="btn btn-rojo" href="/admin/solicitudes">Solicitudes</a>
+					</div>
+				</header>
+
+				{errorCarga ? (
+					<p class="form-error">{errorCarga}</p>
+				) : (
+					<>
+						<div class="admin-stats">
+							<div class="admin-stat">
+								<p class="admin-stat-num">{total}</p>
+								<p class="admin-stat-label">Solicitudes</p>
+							</div>
+							{porMotivo.map((fila) => (
+								<div class="admin-stat">
+									<p class="admin-stat-num">{fila.n}</p>
+									<p class="admin-stat-label">{etiquetaMotivo(fila.motivo)}</p>
+								</div>
+							))}
+						</div>
+
+						<div class="admin-bloque">
+							<div class="admin-bloque-cab">
+								<h2>Últimas solicitudes</h2>
+								<a href="/admin/solicitudes">Ver todas</a>
+							</div>
+							{recientes.length === 0 ? (
+								<p class="nota">Todavía no hay solicitudes.</p>
+							) : (
+								<div class="admin-tabla-wrap">
+									<table class="admin-tabla">
+										<thead>
+											<tr>
+												<th>Fecha</th>
+												<th>Nombre</th>
+												<th>Motivo</th>
+												<th>Área</th>
+												<th></th>
+											</tr>
+										</thead>
+										<tbody>
+											{recientes.map((s) => (
+												<tr>
+													<td>{formatearFecha(s.creado_en)}</td>
+													<td>
+														{s.nombre} {s.apellidos}
+													</td>
+													<td>{etiquetaMotivo(s.motivo)}</td>
+													<td>{s.area || '—'}</td>
+													<td>
+														<a href={`/admin/solicitudes/${s.id}`}>Ver</a>
+													</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)}
+						</div>
+					</>
+				)}
+			</section>
+		</AdminLayout>
+	)
+}

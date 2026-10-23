@@ -1,0 +1,50 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import AdminCursoForm from '../../../components/AdminCursoForm.astro';
+import { NOMBRE_COOKIE_ADMIN, sesionValida } from '../../../lib/auth';
+import { crearCurso, cursoDesdeFormulario } from '../../../lib/cursos';
+import { resolverFotoCurso } from '../../../lib/storage';
+
+if (!sesionValida(Astro.cookies.get(NOMBRE_COOKIE_ADMIN)?.value)) {
+	return Astro.redirect('/admin');
+}
+
+let error = '';
+
+if (Astro.request.method === 'POST') {
+	const datos = await Astro.request.formData();
+	if (String(datos.get('accion') ?? '') === 'guardar') {
+		try {
+			const curso = cursoDesdeFormulario(datos);
+			if (!curso.nombre || !curso.aprender) {
+				throw new Error('Nombre y “qué se aprende” son obligatorios');
+			}
+			curso.foto = await resolverFotoCurso(datos, curso.slug, curso.foto);
+			const creado = await crearCurso(curso);
+			return Astro.redirect(`/admin/cursos/${creado.id}`);
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'No se pudo guardar el curso';
+			if (String(error).includes('duplicate') || String(error).includes('unique')) {
+				error = 'Ya existe un curso con ese slug. Cambia el slug o el nombre.';
+			}
+		}
+	}
+}
+---
+
+<AdminLayout title="Nuevo curso · Admin" activa="cursos">
+	<section class="admin-panel">
+		<header class="admin-cabecera">
+			<div>
+				<p class="admin-migas">
+					<a href="/admin/cursos">Cursos</a>
+					<span>/</span>
+					<span>Nuevo</span>
+				</p>
+				<h1 class="pagina">Añadir área / curso</h1>
+			</div>
+		</header>
+
+		<AdminCursoForm error={error} />
+	</section>
+</AdminLayout>

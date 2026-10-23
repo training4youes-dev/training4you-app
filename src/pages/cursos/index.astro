@@ -1,0 +1,68 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { listarCursosPublicados, type Curso } from '../../lib/cursos';
+
+let cursos: Curso[] = [];
+let errorCarga = '';
+
+try {
+	cursos = await listarCursosPublicados();
+} catch (e) {
+	errorCarga = e instanceof Error ? e.message : 'No se pudieron cargar los cursos';
+}
+---
+
+<Layout title="Cursos · Training 4 You">
+	<h1 class="pagina">Descubre nuestras áreas de formación</h1>
+	<p>
+		Explora las temáticas que trabajamos en Training 4 You y encuentra opciones para seguir
+		desarrollando tus competencias.
+	</p>
+	<p class="areas-nota">
+		Las fechas, horarios y condiciones se concretan al contactar contigo por email o en una
+		sesión informativa.
+	</p>
+
+	{
+		errorCarga ? (
+			<p class="form-error">{errorCarga}</p>
+		) : cursos.length === 0 ? (
+			<p class="nota">Pronto publicaremos los cursos disponibles.</p>
+		) : (
+			<section class="galeria-bloque" id="galeria-areas">
+				<div class="cursos-galeria">
+					{cursos.map((curso) => (
+						<article class="curso-foto">
+							<img src={curso.foto} alt="" width="800" height="600" />
+							<div class="curso-foto-info">
+								<p class="curso-estado">
+									{curso.estado === 'proximamente' ? 'Próximamente' : 'Área formativa'}
+								</p>
+								<h3>{curso.nombre}</h3>
+								<p class="curso-foto-meta">{curso.aprender}</p>
+								<div class="curso-foto-acciones">
+									<a
+										class="btn btn-linea curso-foto-btn"
+										href={`/informacion?motivo=informacion&area=${encodeURIComponent(curso.nombre)}`}
+									>
+										Información
+									</a>
+									<a
+										class="btn btn-rojo curso-foto-btn"
+										href={`/informacion?motivo=plaza&area=${encodeURIComponent(curso.nombre)}`}
+									>
+										Solicitar plaza
+									</a>
+								</div>
+							</div>
+						</article>
+					))}
+				</div>
+			</section>
+		)
+	}
+
+	<div class="acciones" style="margin-top: 2rem;">
+		<a class="btn btn-rojo" href="/informacion?motivo=ayuda">Ayúdame a elegir un curso</a>
+	</div>
+</Layout>

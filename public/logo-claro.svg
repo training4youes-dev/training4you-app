@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 150" role="img" aria-label="Training 4 You">
+  <path
+    fill="#c4162a"
+    fill-rule="evenodd"
+    d="M6 12 L6 138 L118 75 Z M32 50 L32 100 L82 75 Z"
+  />
+  <text
+    x="142"
+    y="68"
+    fill="#ffffff"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="42"
+    font-weight="800"
+    letter-spacing="3"
+  >TRAINING</text>
+  <text
+    x="142"
+    y="128"
+    fill="#c4162a"
+    font-family="Arial, Helvetica, sans-serif"
+    font-size="56"
+    font-weight="800"
+    letter-spacing="1"
+  >4 YOU</text>
+</svg>

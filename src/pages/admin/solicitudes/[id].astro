@@ -1,0 +1,162 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import pool from '../../../lib/db';
+import { NOMBRE_COOKIE_ADMIN, sesionValida } from '../../../lib/auth';
+import {
+	CAMPOS_SOLICITUD,
+	ESTADOS_SOLICITUD,
+	etiquetaEstado,
+	etiquetaMotivo,
+	formatearFecha,
+	normalizarEstado,
+	type Solicitud,
+} from '../../../lib/solicitudes';
+
+if (!sesionValida(Astro.cookies.get(NOMBRE_COOKIE_ADMIN)?.value)) {
+	return Astro.redirect('/admin');
+}
+
+const id = Number(Astro.params.id);
+if (!Number.isFinite(id) || id <= 0) {
+	return Astro.redirect('/admin/solicitudes');
+}
+
+let aviso = '';
+let errorAccion = '';
+
+if (Astro.request.method === 'POST') {
+	const datos = await Astro.request.formData();
+	const accion = String(datos.get('accion') ?? '');
+
+	if (accion === 'borrar') {
+		await pool.query('DELETE FROM solicitudes WHERE id = $1', [id]);
+		return Astro.redirect('/admin/solicitudes');
+	}
+
+	if (accion === 'estado') {
+		const estado = normalizarEstado(datos.get('estado'));
+		try {
+			await pool.query('UPDATE solicitudes SET estado = $1 WHERE id = $2', [estado, id]);
+			aviso = 'Estado actualizado.';
+		} catch (e) {
+			errorAccion = e instanceof Error ? e.message : 'No se pudo actualizar el estado';
+		}
+	}
+}
+
+const { rows } = await pool.query<Solicitud>(
+	`SELECT ${CAMPOS_SOLICITUD}
+	 FROM solicitudes
+	 WHERE id = $1`,
+	[id],
+);
+
+const solicitud = rows[0];
+if (!solicitud) {
+	return Astro.redirect('/admin/solicitudes');
+}
+
+const estadoActual = normalizarEstado(solicitud.estado);
+---
+
+<AdminLayout title={`Solicitud #${solicitud.id} · Admin`} activa="solicitudes">
+	<section class="admin-panel">
+		<header class="admin-cabecera">
+			<div>
+				<p class="admin-migas">
+					<a href="/admin/solicitudes">Solicitudes</a>
+					<span>/</span>
+					<span>#{solicitud.id}</span>
+				</p>
+				<h1 class="pagina">
+					{solicitud.nombre} {solicitud.apellidos}
+				</h1>
+				<p class="admin-resumen">
+					{formatearFecha(solicitud.creado_en)} · {etiquetaEstado(estadoActual)}
+				</p>
+			</div>
+			<div class="admin-cabecera-acciones">
+				<a class="btn btn-linea" href="/admin/solicitudes">Volver</a>
+			</div>
+		</header>
+
+		{aviso ? <p class="admin-ok">{aviso}</p> : null}
+		{errorAccion ? <p class="form-error">{errorAccion}</p> : null}
+
+		<form method="POST" class="admin-estado-form">
+			<input type="hidden" name="accion" value="estado" />
+			<label>
+				Estado
+				<select name="estado">
+					{
+						ESTADOS_SOLICITUD.map((e) => (
+							<option value={e.valor} selected={estadoActual === e.valor}>
+								{e.etiqueta}
+							</option>
+						))
+					}
+				</select>
+			</label>
+			<button type="submit" class="btn btn-rojo">Guardar estado</button>
+		</form>
+
+		<dl class="admin-ficha">
+			<div>
+				<dt>Email</dt>
+				<dd>
+					<a href={`mailto:${solicitud.email}`}>{solicitud.email}</a>
+				</dd>
+			</div>
+			<div>
+				<dt>WhatsApp</dt>
+				<dd>
+					{
+						solicitud.whatsapp ? (
+							<a
+								href={`https://api.whatsapp.com/send?phone=${solicitud.whatsapp.replace(/\D/g, '')}`}
+								target="_blank"
+								rel="noreferrer"
+							>
+								{solicitud.whatsapp}
+							</a>
+						) : (
+							'—'
+						)
+					}
+				</dd>
+			</div>
+			<div>
+				<dt>Motivo</dt>
+				<dd>{etiquetaMotivo(solicitud.motivo)}</dd>
+			</div>
+			<div>
+				<dt>Área</dt>
+				<dd>{solicitud.area || '—'}</dd>
+			</div>
+			<div>
+				<dt>Curso</dt>
+				<dd>{solicitud.curso_slug || '—'}</dd>
+			</div>
+			<div class="admin-ficha-mensaje">
+				<dt>Mensaje</dt>
+				<dd>{solicitud.mensaje || '—'}</dd>
+			</div>
+		</dl>
+
+		<aside class="admin-zona-peligro">
+			<p class="admin-zona-peligro-texto">
+				Borrar esta solicitud la quita del admin. No se puede deshacer.
+			</p>
+			<form method="POST">
+				<input type="hidden" name="accion" value="borrar" />
+				<button
+					type="submit"
+					class="btn admin-btn-borrar"
+					onclick="return confirm('¿Eliminar esta solicitud?')"
+				>
+					Eliminar solicitud
+				</button>
+			</form>
+		</aside>
+	</section>
+</AdminLayout>
