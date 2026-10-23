@@ -6,7 +6,7 @@ Datos fiscales rellenados. **Al cerrar el proyecto**, completar los corchetes:
 ## Corchetes legales (Emma / asesoría)
 
 1. **Registro Mercantil** y datos de inscripción → `/aviso-legal`
-2. **URL definitiva** de la aplicación (Netlify / subdominio) → `/aviso-legal`
+2. ~~**URL definitiva** de la aplicación~~ → hecha: `https://inscripcion.training4you.es`
 3. **DPD** (si lo designan) → `/privacidad`
 4. **Plazos de conservación** de datos → `/privacidad`
 5. **Transferencias internacionales** (detalle por proveedor) → `/privacidad`

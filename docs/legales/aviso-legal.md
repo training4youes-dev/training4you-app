@@ -22,7 +22,7 @@ En cumplimiento de la Ley 34/2002, de servicios de la sociedad de la informació
 
 **Sitio web:** https://training4you.es.
 
-**Aplicación vinculada:** [PENDIENTE — URL definitiva de la aplicación en Netlify / subdominio].
+**Aplicación vinculada:** https://inscripcion.training4you.es.
 
 En este aviso, «T4U» hace referencia al servicio Training 4 You prestado por la sociedad identificada anteriormente.
 
